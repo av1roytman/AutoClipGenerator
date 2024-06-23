@@ -1,3 +1,5 @@
 myenv/
 *.mp4
 Raw/
+.env
+Cropped/
