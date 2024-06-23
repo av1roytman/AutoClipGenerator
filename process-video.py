@@ -20,23 +20,72 @@ def main():
     output_file = sys.argv[2] if len(sys.argv) > 2 else None
 
     # Download the video from the url
+    print("Downloading video...")
     raw_video = download_video(youtube_url, 'Raw')
 
     # Get the Transcript
+    print("Getting transcript...")
     transcript = get_transcript(youtube_url)
     transcript_text_list = [entry['text'] for entry in transcript]
     transcript_text = ' '.join(transcript_text_list)
 
-    # Get the interesting parts of the video
-    interesting_parts = get_interesting_parts(transcript_text)
+    # Check video duration
+    video = VideoFileClip(raw_video)
+    duration = video.duration
 
-    # Extract timestamps for the most interesting parts
-    timestamps = extract_timestamps(interesting_parts, transcript)
+    if duration > 3600:  # If the video is longer than an hour
+        print("Video is longer than an hour. Splitting the video...")
+        mid_point = duration / 2
 
-    print(timestamps)
+        # Split the video into two halves
+        first_half = video.subclip(0, mid_point)
+        second_half = video.subclip(mid_point, duration)
 
-    # Crop the video to the interesting parts
-    crop_video(raw_video, timestamps, 'Cropped')
+        # Split the transcript into two halves
+        first_half_transcript = [entry for entry in transcript if entry['start'] < mid_point]
+        second_half_transcript = [entry for entry in transcript if entry['start'] >= mid_point]
+
+        video_name = os.path.basename(raw_video).split('.')[0]
+
+        # Process the first half
+        print("Processing the first half of the video...")
+        first_half_path = 'Raw/' + video_name + '_first_half.mp4'
+        first_half.write_videofile(first_half_path)
+        first_half_transcript = [entry for entry in transcript if entry['start'] < mid_point]
+        first_half_transcript_text_list = [entry['text'] for entry in first_half_transcript]
+        first_half_transcript_text = ' '.join(first_half_transcript_text_list)
+        first_half_interesting_parts = get_interesting_parts(first_half_transcript_text)
+        first_half_timestamps = extract_timestamps(first_half_interesting_parts, first_half_transcript)
+        crop_video(first_half_path, first_half_timestamps, 'Cropped')
+
+        # Process the second half
+        print("Processing the second half of the video...")
+        second_half_path = 'Raw/' + video_name + '_second_half.mp4'
+        second_half.write_videofile(second_half_path)
+        second_half_transcript = [entry for entry in transcript if entry['start'] >= mid_point]
+        second_half_transcript_text_list = [entry['text'] for entry in second_half_transcript]
+        second_half_transcript_text = ' '.join(second_half_transcript_text_list)
+        second_half_interesting_parts = get_interesting_parts(second_half_transcript_text)
+        second_half_timestamps = extract_timestamps(second_half_interesting_parts, second_half_transcript)
+        crop_video(second_half_path, second_half_timestamps, 'Cropped')
+
+    else:
+        # Get the interesting parts of the video
+        print("Getting interesting parts...")
+        interesting_parts = get_interesting_parts(transcript_text)
+
+        # Extract timestamps for the most interesting parts
+        print("Extracting timestamps...")
+        timestamps = extract_timestamps(interesting_parts, transcript)
+
+        print(timestamps)
+
+        # Crop the video to the interesting parts
+        print("Cropping video...")
+        crop_video(raw_video, timestamps, 'Cropped')
+
+    print("Processing completed.")
+
 
 
 def crop_video(input_file, timestamps, output_path):
