@@ -2,12 +2,6 @@ import subprocess
 import sys
 
 def remove_silence(input_file, output_file=None):
-    """
-    Removes silent parts from a video using auto-editor.
-
-    :param input_file: Path to the input video file (mp4).
-    :param output_file: Path to the output video file (mp4). If None, appends '_ALTERED' to the input file name.
-    """
     if output_file is None:
         output_file = input_file.rsplit('.', 1)[0] + '_ALTERED.mp4'
 
