@@ -55,6 +55,10 @@ def crop_video(input_file, timestamps, output_path):
         # Write the clip to a file
         clip.write_videofile(f"{output_path}/{filename}_{i}.mp4")
 
+        clip.close()
+
+    video.close()
+
 
 def extract_timestamps(interesting_parts, transcript):
     timestamps = []
