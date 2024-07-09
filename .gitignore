@@ -3,3 +3,5 @@ myenv/
 Raw/
 .env
 Cropped/
+credentials.json
+token.pickle
