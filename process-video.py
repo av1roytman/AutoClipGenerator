@@ -37,8 +37,14 @@ def main():
     # Get the Transcript
     print("Getting transcript...")
     transcript = get_transcript(youtube_url)
-    transcript_text_list = [entry["text"] for entry in transcript]
-    transcript_text = " ".join(transcript_text_list)
+    # print("Transcript:", transcript)
+
+    # Convert the transcript to a list of words with timestamps
+    print("Converting transcript...")
+    converted_transcript = convert_transcript(transcript)
+    # print("Converted transcript:", converted_transcript)
+
+    transcript_text = " ".join([entry["text"] for entry in transcript])
 
     # Check video duration
     video = VideoFileClip(raw_video)
@@ -52,10 +58,11 @@ def main():
         split = 1
 
     interesting_parts = get_interesting_parts(transcript_text, split)
+    print(interesting_parts)
 
     # Extract timestamps for the most interesting parts
     print("Extracting timestamps...")
-    timestamps = extract_timestamps(interesting_parts, transcript)
+    timestamps = extract_timestamps(interesting_parts, converted_transcript)
 
     print(timestamps)
 
@@ -70,6 +77,31 @@ def main():
     clear_folder("Cropped")
 
     print("Processing completed.")
+
+
+def convert_transcript(transcript):
+    new_transcript = []
+
+    for entry in transcript:
+        text = entry["text"]
+        start = entry["start"]
+        duration = entry["duration"]
+
+        words = text.split()
+        num_words = len(words)
+        if num_words == 0:
+            continue
+
+        word_duration = duration / num_words
+
+        for i, word in enumerate(words):
+            word_entry = {
+                "text": word,
+                "timestamp": round(start + i * word_duration, 3),
+            }
+            new_transcript.append(word_entry)
+
+    return new_transcript
 
 
 def clear_folder(folder_path):
@@ -131,10 +163,11 @@ def crop_video(input_file, timestamps, output_path):
 
     # Extract filename from input_file
     filename = os.path.basename(input_file)
+    filename = filename.rsplit(".", 1)[0]
 
     # For each timestamp, create a new clip from 60 seconds before to 60 seconds after the timestamp
-    for i, timestamp in enumerate(timestamps[:10]):  # Limit to the first 10 timestamps
-        start = max(0, timestamp - 60)  # Ensure start is not negative
+    for i, timestamp in enumerate(timestamps):  # Limit to the first 10 timestamps
+        start = max(0, timestamp - 5)  # Ensure start is not negative
         end = min(
             video.duration, timestamp + 60
         )  # Set end to the minimum of video duration or timestamp + 60
@@ -142,9 +175,16 @@ def crop_video(input_file, timestamps, output_path):
             clip = video.subclip(start, end)
 
             # Write the clip to a file
-            clip.write_videofile(
-                f"{output_path}/{filename}_{i}.mp4", codec="h264_nvenc"
-            )
+            try:
+                clip.write_videofile(
+                    f"{output_path}/{filename}_{i}.mp4", codec="h264_nvenc"
+                )
+            except AttributeError as e:
+                print(f"An error occurred: {e}")
+                if "stdout" in str(e):
+                    print(
+                        "It seems there is an issue with the audio processing in FFmpeg."
+                    )
 
             clip.close()
 
@@ -153,21 +193,17 @@ def crop_video(input_file, timestamps, output_path):
 
 def extract_timestamps(interesting_parts, transcript):
     timestamps = []
-    for i in range(len(transcript)):
-        text = transcript[i]["text"]
-        j = i + 1
-
-        # Concatenate the text of consecutive entries until the text contains more than 5 words
-        while len(text.split()) < 3 and j < len(transcript):
-            text += " " + transcript[j]["text"]
-            j += 1
+    for i in range(len(transcript) - 5):
+        # Concat the next 5 words
+        text = " ".join([transcript[i + j]["text"] for j in range(5)])
+        # print("text: ", text)
 
         for sentence in interesting_parts:
             if text in sentence:
                 print("sentence: ", sentence)
                 print("text: ", text)
-                if transcript[i]["start"] not in timestamps:
-                    timestamps.append(transcript[i]["start"])
+                if transcript[i]["timestamp"] not in timestamps:
+                    timestamps.append(transcript[i]["timestamp"])
                 interesting_parts.remove(sentence)
 
     return timestamps
@@ -262,12 +298,13 @@ def get_interesting_parts(transcript, split):
             messages=[
                 {
                     "role": "system",
-                    "content": "You are a helpful assistant that finds the most interesting sentences of a video transcript",
+                    "content": "You are a helpful assistant that finds the most interesting and viral-worthy parts of a video transcript. Ensure the selected parts are coherent with a main idea established and are returned word-for-word from the transcript without any modifications.",
                 },
                 {
                     "role": "user",
-                    "content": "The following is the transcript of the video. Identify the 10 most interesting sentences in the transcript that would go viral if turned into a clip. \
-                                            You should return a json object with the key 'interesting_parts' and a list of only the 10 most interesting sentences. Here is the transcript: "
+                    "content": "The following is the transcript of the video. Identify the 10 most interesting and potentially viral parts of the transcript that are coherent with a main idea established. \
+                        Each part should be a coherent segment rather than just a single sentence. Return a json object with the key 'interesting_parts' and a list of only the 10 most interesting parts. \
+                        The selected parts must be word-for-word from the transcript. Here is the transcript: "
                     + part,
                 },
             ],
