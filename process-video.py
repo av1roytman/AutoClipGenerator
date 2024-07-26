@@ -1,7 +1,7 @@
 from math import ceil
 import subprocess
 import sys
-from pytube import YouTube
+from pytubefix import YouTube
 from youtube_transcript_api import YouTubeTranscriptApi
 import os
 from openai import OpenAI
@@ -230,6 +230,8 @@ def remove_silence(input_file, output_file=None):
 
 def download_video(youtube_url, output_path):
     yt = YouTube(youtube_url)
+
+    print("Title:", yt.title)
 
     video_stream = (
         yt.streams.filter(progressive=False, file_extension="mp4")
