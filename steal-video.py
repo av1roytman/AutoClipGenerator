@@ -21,9 +21,6 @@ def download_youtube_short(url):
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
 
-        # Specify the full path to ffmpeg
-        ffmpeg_path = r"C:\Program Files\ffmpeg\bin\ffmpeg.exe"  # Update this with your actual ffmpeg path
-
         # Download the video using yt-dlp
         with YoutubeDL({}) as ydl:
             info_dict = ydl.extract_info(url, download=False)
@@ -35,7 +32,6 @@ def download_youtube_short(url):
             "outtmpl": os.path.join(output_dir, f"{sanitized_title}.%(ext)s"),
             "format": "bestvideo+bestaudio/best",  # Get the best video and audio quality available
             "merge_output_format": "mp4",  # Ensure the output is mp4
-            "ffmpeg_location": ffmpeg_path,  # Explicitly set ffmpeg location
         }
         with YoutubeDL(ydl_opts) as ydl:
             ydl.download([url])
